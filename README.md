@@ -1,3 +1,3 @@
 # AppfroschPersistence
 
-A description of this package.
+A package to persist content locally on device.

@@ -7,6 +7,7 @@
 //
 import AppfroschLogger
 import Foundation
+import CoreGraphics
 #if os(iOS)
 import UIKit //only required to save/load images on iOS
 #else
@@ -263,6 +264,12 @@ public class AppfroschPersistLocally {
     }
     #endif
     
+    public func saveImage(_ image: CIImage, with id: UUID) throws {
+        let imagePath = imageFolder.appendingPathComponent(id.uuidString)
+        let context = CIContext()
+        try context.writePNGRepresentation(of: image, to: imagePath, format: .RGBA8, colorSpace: CGColorSpaceCreateDeviceRGB())
+    }
+    
     /// Copies arbitrary files from a given URL to a data folder within the app.
     ///
     /// This can be used for example to import files from the Files app on iOS. The file will be copied to the folder `data` within the application with its filename being a newly created `UUID`.
@@ -435,7 +442,7 @@ public class AppfroschPersistLocally {
     /// - Returns: picture if found, nil if not
     #if os(iOS)
     public func loadImage(with id: UUID) -> UIImage? {
-        let imagePath = imageFolder.appendingPathComponent(id.uuidString)
+        let imagePath = getImagePath(for: id)
         if fileManager.fileExists(atPath: imagePath.path) {
             if let imageData = fileManager.contents(atPath: imagePath.path) {
                 if let image = UIImage(data: imageData) {
@@ -447,7 +454,7 @@ public class AppfroschPersistLocally {
     }
     #else
     public func loadImage(with id: UUID) -> NSImage? {
-        let imagePath = imageFolder.appendingPathComponent(id.uuidString)
+        let imagePath = getImagePath(for: id)
         if fileManager.fileExists(atPath: imagePath.path) {
             if let imageData = fileManager.contents(atPath: imagePath.path) {
                 if let image = NSImage(data: imageData) {
@@ -458,6 +465,22 @@ public class AppfroschPersistLocally {
         return nil
     }
     #endif
+    
+    
+    /// Cross-platform implementation to load an image from disk.
+    /// - Parameter id: the image's uuid
+    /// - Returns: optional image
+    public func loadCIImage(with id: UUID) -> CIImage? {
+        let imagePath = getImagePath(for: id).path()
+        if fileManager.fileExists(atPath: imagePath) {
+            if let imageData = fileManager.contents(atPath: imagePath) {
+                if let image = CIImage(data: imageData) {
+                    return image
+                }
+            }
+        }
+        return nil
+    }
     
     
     /// Loads data with a given `UUID`.
@@ -545,5 +568,10 @@ public class AppfroschPersistLocally {
         } else {
             AppfroschLogger.shared.logToConsole(message: "Could not delete image because it does not exist.", type: .error)
         }
+    }
+    
+    //MARK: Helper Files
+    private func getImagePath(for id: UUID) -> URL {
+        imageFolder.appending(path: id.uuidString)
     }
 }

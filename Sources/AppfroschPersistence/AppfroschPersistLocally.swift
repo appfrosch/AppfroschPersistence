@@ -264,10 +264,35 @@ public class AppfroschPersistLocally {
     }
     #endif
     
+    /// Saves an image to the `images`-folder using the `id` to name the file.
+    ///
+    /// As this method uses `CIImage` as the input, it should be `UIKit` and `AppKit` compatible.
+    ///
+    /// By using a `UUID` to name the file, retrieving a file that belongs to an instance of a given type is done by using the instances `id`.
+    /// - Parameters:
+    ///   - image: the image (`CIImage`) to be saved
+    ///   - id: unique identifier to name the image
     public func saveImage(_ image: CIImage, with id: UUID) throws {
         let imagePath = imageFolder.appendingPathComponent(id.uuidString)
         let context = CIContext()
         try context.writePNGRepresentation(of: image, to: imagePath, format: .RGBA8, colorSpace: CGColorSpaceCreateDeviceRGB())
+        AppfroschLogger.shared.logToConsole(message: "Save image with id \(id) successfully to \(imagePath)", type: .debug)
+    }
+    
+    /// Saves an image to the `images`-folder using the `id` to name the file.
+    ///
+    /// As this method uses `CGImage` as the input, it should be `UIKit` and `AppKit` compatible.
+    ///
+    /// By using a `UUID` to name the file, retrieving a file that belongs to an instance of a given type is done by using the instances `id`.
+    /// - Parameters:
+    ///   - image: the image (`CGImage`) to be saved
+    ///   - id: unique identifier to name the image
+    public func saveImage(_ image: CGImage, with id: UUID) throws {
+        let imagePath = imageFolder.appendingPathComponent(id.uuidString)
+        let ciImage = CIImage(cgImage: image)
+        let context = CIContext()
+        try context.writePNGRepresentation(of: ciImage, to: imagePath, format: .RGBA8, colorSpace: CGColorSpaceCreateDeviceRGB())
+        AppfroschLogger.shared.logToConsole(message: "Save image with id \(id) successfully to \(imagePath)", type: .debug)
     }
     
     /// Copies arbitrary files from a given URL to a data folder within the app.
@@ -477,6 +502,16 @@ public class AppfroschPersistLocally {
                 if let image = CIImage(data: imageData) {
                     return image
                 }
+            }
+        }
+        return nil
+    }
+    
+    public func loadCGImage(with id: UUID) -> CGImage? {
+        if let ciImage = loadCIImage(with: id) {
+            let context = CIContext()
+            if let cgImage = context.createCGImage(ciImage, from: ciImage.extent) {
+                return cgImage
             }
         }
         return nil

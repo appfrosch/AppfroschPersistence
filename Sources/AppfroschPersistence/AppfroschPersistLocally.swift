@@ -84,7 +84,7 @@ public class AppfroschPersistLocally {
         return FileManager.default
     }()
     
-    private lazy var docPath: URL = {
+    public lazy var docPath: URL = {
         let urls = fileManager.urls(for: .documentDirectory, in: .userDomainMask)
         guard let docPath = urls.first else { fatalError() }
         AppfroschLogger.shared.logToConsole(message: "Doc path is: \(docPath)", type: .debug)
@@ -189,7 +189,7 @@ public class AppfroschPersistLocally {
     }
     
     /// Saves one file of type T locally that cannot be stored in UserDefaults.
-    public func save<T: Codable>(instance: T) {
+    public func saveSingle<T: Codable>(instance: T) {
         let pathFolder = docPath.appendingPathComponent(String(describing: T.self))
         if !fileManager.fileExists(atPath: pathFolder.absoluteString) {
             do {

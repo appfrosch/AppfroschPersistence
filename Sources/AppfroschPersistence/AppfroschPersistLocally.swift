@@ -123,7 +123,7 @@ public class AppfroschPersistLocally {
     ///
     /// If the instance is nil, this func will try to delete any instance of a currently saved instance at the filename's path,
     /// if it is not nil, it will save the the instance to the given filename's path.
-    public func save<T: Codable>(instance: T? = nil, to filename: String) {
+    public func save<T: Codable & Identifiable>(instance: T? = nil, to filename: String) {
         let path = docPath.appendingPathComponent(filename).appendingPathExtension("json")
         let pathUrl = URL(fileURLWithPath: path.relativePath)
         if let instance = instance {
@@ -131,7 +131,7 @@ public class AppfroschPersistLocally {
                 let data = try encoder.encode(instance)
                 do {
                     try data.write(to: pathUrl)
-                    AppfroschLogger.shared.logToConsole(message: "Saved instance of \(T.self) to file \(path.relativePath)", type: .debug)
+                    AppfroschLogger.shared.logToConsole(message: "Saved instance of \(T.self) with id \(instance.id) to file \(path.relativePath)", type: .debug)
                 } catch {
                     AppfroschLogger.shared.logToConsole(message: "Could not save data: \(error)", type: .error)
                 }
@@ -179,7 +179,7 @@ public class AppfroschPersistLocally {
             let data = try encoder.encode(instance)
             do {
                 try data.write(to: URL(fileURLWithPath: path.relativePath))
-                AppfroschLogger.shared.logToConsole(message: "Saved instance of \(T.self)", type: .debug)
+                AppfroschLogger.shared.logToConsole(message: "Saved instance of \(T.self) with id \(instance.id) to file \(path.relativePath)", type: .debug)
             } catch {
                 AppfroschLogger.shared.logToConsole(message: "Could not save data: \(error)", type: .error)
             }
@@ -321,7 +321,7 @@ public class AppfroschPersistLocally {
         let dataPath = dataFolder.appendingPathComponent(id.uuidString)
         do {
             try data.write(to: dataPath, options: [.atomic])
-            AppfroschLogger.shared.logToConsole(message: "Saved data to \(dataPath.path)", type: .debug)
+            AppfroschLogger.shared.logToConsole(message: "Saved data with id \(id) to \(dataPath.path)", type: .debug)
         } catch {
             AppfroschLogger.shared.logToConsole(message: "Error saving data to \(dataPath.path):", type: .error)
             AppfroschLogger.shared.logToConsole(message: error.localizedDescription, type: .error)

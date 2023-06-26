@@ -1,6 +1,6 @@
 //
 //  AppfroschPersistLocally.swift
-//  AppfroschsToolbox
+//  AppfroschPersistence
 //
 //  Created by Andreas Seeger on 29.01.20.
 //  Copyright © 2020 Andreas Seeger. All rights reserved.
@@ -16,20 +16,22 @@ import SwiftUI
 #endif
 
 //MARK: Class Documentation
-///Generic, singleton class to persist locally as json files.
+///Generic, singleton class to persist instances locally as json files.
+///
+///
 ///Use `AppfroschPersistLocally.shared` to get access to the singleton.
 ///
-///The struct or class using this __must__ conform to `Codable & Identifiable` which is why iOS13
-///is required.
+///The instance of a struct or a class using this __must__ conform to `Codable & Identifiable`
+///which is why iOS13 is required.
 ///
 ///# Example struct
-///An example of this is the
+///An example of this is the following
 ///struct `Contact`:
-///```
+///```swift
 ///import Foundation
 ///
 ///struct Contact: Codable, Identifiable {
-///    let id: UUID // could be String or Int alternatively also
+///    let id: UUID // could be String or Int alternatively also, must be unique for all instances though
 ///    var contactTitle: String
 ///    var name: String? = nil
 ///    var firstname: String? = nil
@@ -39,24 +41,36 @@ import SwiftUI
 ///}
 ///```
 ///
-///# Saving
+///> If a property is a custom type, that type must conform to `Codable` as well.
+///
+///# CRUD
+///The following describes the CRUD (create, read, update, delete) procedures with this package.
+///## Saving (Create)
 ///Saving to disk now is as simple as:
 ///```
 ///let contact = Contact(id: UUID(), contactTitle: "Foo")
 ///AppfroschPersistLocally.shared.save(contact)
 ///```
-///Saving like this results in a (potentially new) folder `Contact` locally in the user's domain documents folder
-///and a new or updated file within with the `id` as the file name and the instance itself in a json format.
+///Saving like this results in a (potentially new, if this is the first time an instance of this type)
+///folder `Contact` locally in the user's domain documents folder
+///and a new or updated file within it with the `id` as the file name and the instance itself in a json file.
 ///
-///# Loading
-///Loading all files of a given type is now done like this:
+///If there already is a file for this instance when saving, the file is _updated_.
+///
+///## Loading (Read)
+///Loading **all files** of a given type is now done like this:
 ///```
 ///contacts = AppfroschPersistLocally.shared.loadAll(of: Contact.self)
 ///```
-///This will grab the contents of the directory `Contact` in this example, decode each file and return an
-///array of contacts.
+///This will grab the contents of the directory `Contact` in this example, decode each file and return **an
+///array of contacts**.
 ///
-///# Deleting
+///## Update
+///Updating a file can be done with `update(instance:)`.
+///A regular `save(instance:in:)` works as well, the main difference is
+///that when using `update`, the instance's file is deleted prior to being saved again.
+///
+///## Deleting
 ///Deleting a file is done like this:
 ///```
 ///AppfroschPersistLocally.shared.delete(instance)
@@ -66,24 +80,31 @@ public class AppfroschPersistLocally {
     ///The shared instance of this singleton class.
     public static let shared = AppfroschPersistLocally()
     
+    ///The encoder used for encoding instances to json files in this class.
     private let encoder: JSONEncoder = {
         let e = JSONEncoder()
         e.dateEncodingStrategy = .iso8601
         return e
     }()
     
-    private let decoderIso: JSONDecoder = {
+    ///The decoder for decoding json files to instances in this class.
+    ///
+    ///The standard `dateDecodingStrategy` is `.iso8601`.
+    private let decoder: JSONDecoder = {
         let d = JSONDecoder()
         d.dateDecodingStrategy = .iso8601
         return d
     }()
     
-    private let decoder = JSONDecoder()
-    
+    ///Used to read/delete from / save to the file system.
     private let fileManager: FileManager = {
         return FileManager.default
     }()
     
+    ///The document directory for the application this package running in.
+    ///
+    ///When this property is initialised, its path is being logged to the console
+    ///to inform the developer of the location.
     public lazy var docPath: URL = {
         let urls = fileManager.urls(for: .documentDirectory, in: .userDomainMask)
         guard let docPath = urls.first else { fatalError() }
@@ -91,7 +112,10 @@ public class AppfroschPersistLocally {
         return docPath
     }()
     
-    private lazy var imageFolder: URL = {// = docPath.appendingPathComponent("images")
+    //TODO: consider adding yet another folder called `assets` to store arbitrary binary files.
+    
+    ///A specific folder for saving/retrieving images.
+    private lazy var imageFolder: URL = {
         let imageFolder = docPath.appendingPathComponent("images")
         
         var isDirectory: ObjCBool = false
@@ -102,6 +126,7 @@ public class AppfroschPersistLocally {
         return imageFolder
     }()
     
+    ///A specific folder for saving/retrieving arbitrary data.
     private lazy var dataFolder: URL = {
         let dataFolder = docPath.appendingPathComponent("data")
         var isDirectory: ObjCBool = false
@@ -111,6 +136,7 @@ public class AppfroschPersistLocally {
         return dataFolder
     }()
     
+    ///A temporary folder.
     public lazy var tmpFolder: URL = {
         fileManager.temporaryDirectory
     }()
@@ -338,7 +364,7 @@ public class AppfroschPersistLocally {
         if fileManager.fileExists(atPath: path.path) {
             if let data = fileManager.contents(atPath: path.path) {
                 do {
-                    let instance = try decoderIso.decode(T.self, from: data)
+                    let instance = try decoder.decode(T.self, from: data)
                     AppfroschLogger.shared.logToConsole(message: "Loading instance of \(T.self) at \(path.path) successfully.", type: .debug)
                     return instance
                 } catch {
@@ -415,7 +441,7 @@ public class AppfroschPersistLocally {
                             result.append(instance)
                             continue
                         }
-                        let instance = try decoderIso.decode(T.self, from: data)
+                        let instance = try decoder.decode(T.self, from: data)
                         result.append(instance)
                     } catch {
                         AppfroschLogger.shared.logToConsole(message: "Could not decode data of type \(type): \(error)", type: .error)
@@ -448,7 +474,7 @@ public class AppfroschPersistLocally {
                         return result
                     }
                     //Try with iso-Date decoder (in case the non-iso date format is a problem
-                    result = try decoderIso.decode([T].self, from: data)
+                    result = try decoder.decode([T].self, from: data)
                     
                 } catch {
                     AppfroschLogger.shared.logToConsole(message: "Could not decode collection data: \(error)", type: .error)
@@ -533,6 +559,10 @@ public class AppfroschPersistLocally {
     }
     
     //MARK: - Update
+    /// This function makes a purposeful update by first deleting the instances file and then saving it.
+    /// This is in contrast to just using the `save(instance:in:)` function,
+    /// which just saves the instance independent of whether there already is a file for this instance.
+    /// - Parameter instance: instance of a type that  conforms to `Codable` & `Identifiable`
     public func update<T: Codable & Identifiable>(instance: T) {
         delete(instance: instance)
         save(instance: instance)

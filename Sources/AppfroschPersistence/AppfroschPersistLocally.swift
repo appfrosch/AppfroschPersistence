@@ -18,7 +18,6 @@ import SwiftUI
 //MARK: Class Documentation
 ///Generic, singleton class to persist instances locally as json files.
 ///
-///
 ///Use `AppfroschPersistLocally.shared` to get access to the singleton.
 ///
 ///The instance of a struct or a class using this __must__ conform to `Codable & Identifiable`
@@ -77,6 +76,9 @@ import SwiftUI
 ///```
 ///
 public class AppfroschPersistLocally {
+    ///Making the init private prevents creating an instance.
+    private init() {}
+    
     ///The shared instance of this singleton class.
     public static let shared = AppfroschPersistLocally()
     
@@ -88,9 +90,12 @@ public class AppfroschPersistLocally {
     }()
     
     ///The decoder for decoding json files to instances in this class.
+    private let decoder = JSONDecoder()
+    
+    ///The iso decoder for decoding json files to instances in this class.
     ///
     ///The standard `dateDecodingStrategy` is `.iso8601`.
-    private let decoder: JSONDecoder = {
+    private let decoderIso: JSONDecoder = {
         let d = JSONDecoder()
         d.dateDecodingStrategy = .iso8601
         return d
@@ -142,13 +147,19 @@ public class AppfroschPersistLocally {
     }()
     
     //MARK: - Create
-    /// Saves an instance of a given type to a specific filename.
+    /// Saves an instance of a given type to a **specific filename**.
     ///
     /// Use case: could be used to persist a currentObject of an application (e.g. a running timer),
     /// enabling to reload such an object again when the app (re-)launches.
     ///
-    /// If the instance is nil, this func will try to delete any instance of a currently saved instance at the filename's path,
+    /// If the instance is nil, this function will try to delete any instance of a currently saved instance at the filename's path,
     /// if it is not nil, it will save the the instance to the given filename's path.
+    ///
+    /// # Usage of this method:
+    ///
+    /// See the __class documentation__ on the preliminaries and on how to use this method.
+    /// - parameter instance: Specific instance of a generic type conforming to `Codable & Identifiable`
+    /// - parameter filename: the filename that should be used
     public func save<T: Codable & Identifiable>(instance: T? = nil, to filename: String) {
         let path = docPath.appendingPathComponent(filename).appendingPathExtension("json")
         let pathUrl = URL(fileURLWithPath: path.relativePath)
@@ -176,16 +187,16 @@ public class AppfroschPersistLocally {
         }
     }
     
-    ///Saves an instance of a given type, encoding it and saving it to disk.
+    /// Saves an instance of a given type, encoding it and saving it to disk.
     ///
-    ///Use the property `subfolder` if the need to save multiple collections of the same type
-    ///(e.g. `items` and `archivedItems` for the type `Item`).
+    /// Use the property `subfolder` if needed to save multiple collections of the same type
+    /// (e.g. `items` and `archivedItems` for the type `Item`).
     ///
-    ///# Usage of this method:
+    /// # Usage of this method:
     ///
-    ///See the __class documentation__ on the preliminaries and on how to use this method.
+    /// See the __class documentation__ on the preliminaries and on how to use this method.
     ///- parameter instance: Specific instance of a generic type conforming to `Codable & Identifiable`
-    ///- parameter subfolder: optional property that enables saving to a subfolder within the type's folder
+    ///- parameter subfolder: optional property that enables saving to a subfolder within the type's folder, defaults to nil
     public func save<T: Codable & Identifiable>(instance: T, in subfolder: String? = nil) {
         var pathFolder = docPath.appendingPathComponent(String(describing: T.self))
         if let subfolder = subfolder {
@@ -214,7 +225,13 @@ public class AppfroschPersistLocally {
         }
     }
     
-    /// Saves one file of type T locally that cannot be stored in UserDefaults.
+    /// Saves a single file of type T locally that cannot be stored in UserDefaults.
+    ///
+    /// # Usage of this method:
+    ///
+    /// See the __class documentation__ on the preliminaries and on how to use this method.
+    ///
+    /// - parameter instance: Specific instance of a generic type conforming to `Codable & Identifiable`
     public func saveSingle<T: Codable>(instance: T) {
         let pathFolder = docPath.appendingPathComponent(String(describing: T.self))
         if !fileManager.fileExists(atPath: pathFolder.absoluteString) {
@@ -241,7 +258,12 @@ public class AppfroschPersistLocally {
     }
     
     /// Saves a collection of type T to individual json-files using the `save(instance:)` function.
-    /// - Parameter collection: the collection to be saved
+    ///
+    /// # Usage of this method:
+    ///
+    /// See the __class documentation__ on the preliminaries and on how to use this method.
+    ///
+    /// - parameter collection: the collection to be saved
     /// - parameter subFolder:
     /// - parameter resetSaveFolder: deletes all entries of the instances being saved prior to saving to reflect the fact that items in the list might have gotten deleted
     public func save<T: Codable & Identifiable>(collection: [T], in subFolder: String? = nil, resetSaveFolder: Bool = true) {
@@ -254,12 +276,16 @@ public class AppfroschPersistLocally {
     
     /// Saves an image to the `images`-folder using the `id` to name the file.
     ///
-    /// Requires UIKit, which is not running on macOS
+    /// This version requires UIKit.
     ///
     /// By using a `UUID` to name the file, retrieving a file that belongs to an instance of a given type is done by using the instances `id`.
-    /// - Parameters:
-    ///   - image: the image to be saved
-    ///   - id: unique identifier to name the image
+    ///
+    /// # Usage of this method:
+    ///
+    /// See the __class documentation__ on the preliminaries and on how to use this method.
+    ///
+    /// - parameter image: the image to be saved
+    /// - parameter id: unique identifier to name the image
     #if os(iOS)
     public func saveImage(_ image: UIImage, with id: UUID) {
         let imagePath = imageFolder.appendingPathComponent(id.uuidString)
@@ -274,6 +300,18 @@ public class AppfroschPersistLocally {
         }
     }
     #else
+    /// Saves an image to the `images`-folder using the `id` to name the file.
+    ///
+    /// This version requires AppKit.
+    ///
+    /// By using a `UUID` to name the file, retrieving a file that belongs to an instance of a given type is done by using the instances `id`.
+    ///
+    /// # Usage of this method:
+    ///
+    /// See the __class documentation__ on the preliminaries and on how to use this method.
+    ///
+    /// - parameter image: the image to be saved
+    /// - parameter id: unique identifier to name the image
     public func saveImage(_ image: NSImage, with id: UUID) {
         let imagePath = imageFolder.appendingPathComponent(id.uuidString)
         guard let cgImage = image.cgImage(forProposedRect: nil, context: nil, hints: nil)
@@ -295,9 +333,13 @@ public class AppfroschPersistLocally {
     /// As this method uses `CIImage` as the input, it should be `UIKit` and `AppKit` compatible.
     ///
     /// By using a `UUID` to name the file, retrieving a file that belongs to an instance of a given type is done by using the instances `id`.
-    /// - Parameters:
-    ///   - image: the image (`CIImage`) to be saved
-    ///   - id: unique identifier to name the image
+    ///
+    /// # Usage of this method:
+    ///
+    /// See the __class documentation__ on the preliminaries and on how to use this method.
+    ///
+    /// - parameter image: the image (`CIImage`) to be saved
+    /// - parameter id: unique identifier to name the image
     public func saveImage(_ image: CIImage, with id: UUID) throws {
         let imagePath = imageFolder.appendingPathComponent(id.uuidString)
         let context = CIContext()
@@ -310,9 +352,13 @@ public class AppfroschPersistLocally {
     /// As this method uses `CGImage` as the input, it should be `UIKit` and `AppKit` compatible.
     ///
     /// By using a `UUID` to name the file, retrieving a file that belongs to an instance of a given type is done by using the instances `id`.
-    /// - Parameters:
-    ///   - image: the image (`CGImage`) to be saved
-    ///   - id: unique identifier to name the image
+    ///
+    /// # Usage of this method:
+    ///
+    /// See the __class documentation__ on the preliminaries and on how to use this method.
+    ///
+    /// - parameter image: the image (`CGImage`) to be saved
+    /// - parameter id: unique identifier to name the image
     public func saveImage(_ image: CGImage, with id: UUID) throws {
         let imagePath = imageFolder.appendingPathComponent(id.uuidString)
         let ciImage = CIImage(cgImage: image)
@@ -326,9 +372,13 @@ public class AppfroschPersistLocally {
     /// This can be used for example to import files from the Files app on iOS. The file will be copied to the folder `data` within the application with its filename being a newly created `UUID`.
     /// This `UUID` is returned so that the model layer of the app can save a reference to the copied file in order to later load that file if needed.
     ///
+    /// # Usage of this method:
+    ///
+    /// See the __class documentation__ on the preliminaries and on how to use this method.
+    ///
     /// The counterpart `loadData(with:)` will load the file with the given `UUID`.
-    /// - Parameter source: the source url
-    /// - Returns: uuid of the file to reference it
+    /// - parameter source: the source url
+    /// - returns: uuid of the file to reference it
     public func copyFile(from source: URL) -> UUID? {
         let id = UUID()
         let dataPath = dataFolder.appendingPathComponent(id.uuidString)
@@ -343,6 +393,14 @@ public class AppfroschPersistLocally {
         return nil
     }
     
+    /// Saves arbitrary data to disk.
+    ///
+    /// # Usage of this method:
+    ///
+    /// See the __class documentation__ on the preliminaries and on how to use this method.
+    ///
+    /// - parameter data: the data to save
+    /// - parameter id: the uuid used for the filename
     public func save(data: Data, with id: UUID) {
         let dataPath = dataFolder.appendingPathComponent(id.uuidString)
         do {
@@ -356,9 +414,17 @@ public class AppfroschPersistLocally {
     
     
     //MARK: - Read
-    /// Loads an instance of a given type from a specific filename.
+    /// Loads an instance of a given type from a **specific filename**.
     ///
     /// Use case: could be used to load a persisted currentObject of an application (e.g. a running timer).
+    ///
+    /// # Usage of this method:
+    ///
+    /// See the __class documentation__ on the preliminaries and on how to use this method.
+    ///
+    /// - parameter type: the type conforming to `Codable`, needed to decode the file to an instance of that type
+    /// - parameter filename: the filename that's supposed to be loaded
+    /// - returns: an optional instance of type `T`
     public func load<T: Codable>(of type: T.Type, from filename: String) -> T? {
         let path = docPath.appendingPathComponent(filename).appendingPathExtension("json")
         if fileManager.fileExists(atPath: path.path) {
@@ -378,7 +444,13 @@ public class AppfroschPersistLocally {
     /// Loads a file of type T from local storage.
     ///
     /// Use case: load content that could not be stored as UserDefault.
-    /// - Returns: optional instance of generic type T
+    ///
+    /// # Usage of this method:
+    ///
+    /// See the __class documentation__ on the preliminaries and on how to use this method.
+    ///
+    /// - parameter type: the type conforming to `Codable`, needed to decode the file to an instance of that type
+    /// - returns: an optional instance of type `T`
     public func load<T: Codable>(_ type: T.Type) -> T? {
         let pathFolder = docPath.appendingPathComponent(String(describing: type))
         if fileManager.fileExists(atPath: pathFolder.path) {
@@ -415,9 +487,9 @@ public class AppfroschPersistLocally {
     ///
     ///See the __class documentation__ on the preliminaries and on how to use this method.
     ///
-    ///- parameter type: The type which the instances are supposed to be loaded for
-    ///- parameter subFolder: optional property that enables loading from a subfolder within the type's folder
-    ///- returns: Array of all the instances of a given type stored locally
+    ///- parameter type: the type which the instances are supposed to be loaded for
+    ///- parameter subFolder: optional property that enables loading from a subfolder within the type's folder, defaults to `nil`
+    ///- returns: an array of all the instances of a given type stored locally
     ///
     public func loadAll<T: Codable & Identifiable>(of type: T.Type, in subFolder: String? = nil) -> [T] {
         var result = [T]()
@@ -460,8 +532,8 @@ public class AppfroschPersistLocally {
     ///
     /// See the __class documentation__ on the preliminaries and on how to use this method.
     ///
-    ///- parameter type: The type which the instances are supposed to be loaded for,
-    ///- returns: Array of all the instances of a given type stored locally
+    ///- parameter type: the type which the instances are supposed to be loaded for,
+    ///- returns: an array of all the instances of a given type stored locally
     ///
     public func loadCollection<T: Codable & Identifiable>(of type: T.Type) -> [T] {
         var result = [T]()
@@ -474,7 +546,7 @@ public class AppfroschPersistLocally {
                         return result
                     }
                     //Try with iso-Date decoder (in case the non-iso date format is a problem
-                    result = try decoder.decode([T].self, from: data)
+                    result = try decoderIso.decode([T].self, from: data)
                     
                 } catch {
                     AppfroschLogger.shared.logToConsole(message: "Could not decode collection data: \(error)", type: .error)
@@ -489,8 +561,13 @@ public class AppfroschPersistLocally {
     /// Requires UIKit, which is not running on macOS
     ///
     /// Requirement: the image has been previously stored in `Documents/images`.
-    /// - Parameter id: UUID of the instance the picture is connected with
-    /// - Returns: picture if found, nil if not
+    ///
+    /// # Usage of this method:
+    ///
+    /// See the __class documentation__ on the preliminaries and on how to use this method.
+    ///
+    /// - parameter id: UUID of the instance the picture is connected with
+    /// - returns: picture if found, nil if not
     #if os(iOS)
     public func loadImage(with id: UUID) -> UIImage? {
         let imagePath = getImagePath(for: id)
@@ -504,6 +581,18 @@ public class AppfroschPersistLocally {
         return nil
     }
     #else
+    /// Loads an image by its name, the name being the `id` of the instance connected with the image if found.
+    ///
+    /// Requires AppKit, which is not running on macOS
+    ///
+    /// Requirement: the image has been previously stored in `Documents/images`.
+    ///
+    /// # Usage of this method:
+    ///
+    /// See the __class documentation__ on the preliminaries and on how to use this method.
+    ///
+    /// - parameter id: UUID of the instance the picture is connected with
+    /// - returns: picture if found, nil if not
     public func loadImage(with id: UUID) -> NSImage? {
         let imagePath = getImagePath(for: id)
         if fileManager.fileExists(atPath: imagePath.path) {
@@ -519,8 +608,13 @@ public class AppfroschPersistLocally {
     
     
     /// Cross-platform implementation to load an image from disk.
-    /// - Parameter id: the image's uuid
-    /// - Returns: optional image
+    ///
+    /// # Usage of this method:
+    ///
+    /// See the __class documentation__ on the preliminaries and on how to use this method.
+    ///
+    /// - parameter id: the image's uuid
+    /// - returns: optional image
     public func loadCIImage(with id: UUID) -> CIImage? {
         let imagePath = getImagePath(for: id).path()
         if fileManager.fileExists(atPath: imagePath) {
@@ -533,6 +627,14 @@ public class AppfroschPersistLocally {
         return nil
     }
     
+    /// Cross-platform implementation to load an image from disk.
+    ///
+    /// # Usage of this method:
+    ///
+    /// See the __class documentation__ on the preliminaries and on how to use this method.
+    ///
+    /// - parameter id: the image's uuid
+    /// - returns: optional image
     public func loadCGImage(with id: UUID) -> CGImage? {
         if let ciImage = loadCIImage(with: id) {
             let context = CIContext()
@@ -547,8 +649,13 @@ public class AppfroschPersistLocally {
     /// Loads data with a given `UUID`.
     ///
     /// Counterpart to `copyFile(from:)`.
-    /// - Parameter id: the `UUID` of the local data that's to get loaded
-    /// - Returns: returns the data, if the file with the given id exists or `nil`, if it does not
+    ///
+    /// # Usage of this method:
+    ///
+    /// See the __class documentation__ on the preliminaries and on how to use this method.
+    ///
+    /// - parameter id: the `UUID` of the local data that's to get loaded
+    /// - returns: returns the data, if the file with the given id exists or `nil`, if it does not
     public func loadData(with id: UUID) -> Data? {
         let dataPath = dataFolder.appendingPathComponent(id.uuidString)
         if fileManager.fileExists(atPath: dataPath.path) {
@@ -559,10 +666,17 @@ public class AppfroschPersistLocally {
     }
     
     //MARK: - Update
+    //TODO: consider if this is needed–the saving funcs conditionally deletes the instance if needed
     /// This function makes a purposeful update by first deleting the instances file and then saving it.
+    ///
     /// This is in contrast to just using the `save(instance:in:)` function,
     /// which just saves the instance independent of whether there already is a file for this instance.
-    /// - Parameter instance: instance of a type that  conforms to `Codable` & `Identifiable`
+    /// - parameter instance: instance of a type that  conforms to `Codable` & `Identifiable`
+    ///
+    /// # Usage of this method:
+    ///
+    /// See the __class documentation__ on the preliminaries and on how to use this method.
+    ///
     public func update<T: Codable & Identifiable>(instance: T) {
         delete(instance: instance)
         save(instance: instance)
@@ -572,6 +686,11 @@ public class AppfroschPersistLocally {
     /// Deletes the folder for this instance or its subfolder.
     ///
     ///Use case: when (re-)saving a collection of items, this method can get called prior to saving the collections instances, that might have gotten reduced.
+    ///
+    /// # Usage of this method:
+    ///
+    /// See the __class documentation__ on the preliminaries and on how to use this method.
+    ///
     ///```swift
     ///  @Published var timedEvents: [TimedEvent] {
     ///  willSet {
@@ -585,9 +704,8 @@ public class AppfroschPersistLocally {
     ///  }
     ///```
     ///
-    /// - Parameters:
-    ///   - instance: the instance whose type's folder or subfolder is to be deleted
-    ///   - subFolder: optional subfolder for the type folder of this instance
+    ///   - parameter instance: the instance whose type's folder or subfolder is to be deleted
+    ///   - parameter subFolder: optional subfolder for the type folder of this instance
     public func resetSaveFolder<T: Codable & Identifiable>(of type: T.Type, in subFolder: String? = nil) {
         var pathFolder = docPath.appendingPathComponent(String(describing: T.self))
         if let subFolder = subFolder {
@@ -603,7 +721,12 @@ public class AppfroschPersistLocally {
     }
     
     /// Deletes the persisted representation of an instance. That instance must be stored in the filesystem following the naming convention `<instanceId>.json`.
-    /// - Parameter instance: the instance that's supposed to be deleted.
+    ///
+    /// # Usage of this method:
+    ///
+    /// See the __class documentation__ on the preliminaries and on how to use this method.
+    ///
+    /// - parameter instance: the instance that's supposed to be deleted.
     public func delete<T: Codable & Identifiable>(instance: T) {
         let pathFolder = docPath.appendingPathComponent(String(describing: T.self))
         let path = pathFolder.appendingPathComponent(String(describing: instance.id)).appendingPathExtension("json")
@@ -620,6 +743,11 @@ public class AppfroschPersistLocally {
     }
     
     /// Deletes the persisted image. That instance must be stored in the filesystem following the naming convention `uuid`.
+    ///
+    /// # Usage of this method:
+    ///
+    /// See the __class documentation__ on the preliminaries and on how to use this method.
+    ///
     /// - Parameter id: the image id for the image  that's supposed to be deleted.
     public func deleteImage(with id: UUID) {
         let imagePath = imageFolder.appendingPathComponent(id.uuidString)

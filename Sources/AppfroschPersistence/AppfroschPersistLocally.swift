@@ -42,6 +42,8 @@ import SwiftUI
 ///
 ///> If a property is a custom type, that type must conform to `Codable` as well.
 ///
+///> Also be aware that en- and decoding dates is conforming to iso8601 conventions.
+///
 ///# CRUD
 ///The following describes the CRUD (create, read, update, delete) procedures with this package.
 ///## Saving (Create)
@@ -88,14 +90,11 @@ public class AppfroschPersistLocally {
         e.dateEncodingStrategy = .iso8601
         return e
     }()
-    
+
     ///The decoder for decoding json files to instances in this class.
-    private let decoder = JSONDecoder()
-    
-    ///The iso decoder for decoding json files to instances in this class.
     ///
     ///The standard `dateDecodingStrategy` is `.iso8601`.
-    private let decoderIso: JSONDecoder = {
+    private let decoder: JSONDecoder = {
         let d = JSONDecoder()
         d.dateDecodingStrategy = .iso8601
         return d
@@ -546,7 +545,7 @@ public class AppfroschPersistLocally {
                         return result
                     }
                     //Try with iso-Date decoder (in case the non-iso date format is a problem
-                    result = try decoderIso.decode([T].self, from: data)
+                    result = try decoder.decode([T].self, from: data)
                     
                 } catch {
                     AppfroschLogger.shared.logToConsole(message: "Could not decode collection data: \(error)", type: .error)
